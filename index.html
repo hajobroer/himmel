@@ -318,7 +318,7 @@ h2 small{font-weight:400;color:var(--ink-3)}
 (() => {
 'use strict';
 /* ---------- config ---------- */
-const VERSION = '2.11.02-12';
+const VERSION = '2.11.02-13';
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 const MODELS = [
@@ -716,7 +716,7 @@ function render() {
   }));
   document.body.classList.add('ready');
   $('#refresh').addEventListener('click', () => loadFor(data.demo ? { name: 'Marienhafe', lat: 53.52, lon: 7.27 } : loc, true));
-  paintSky(m);
+  try { paintSky(m); } catch (e) { console.warn('Himmel-Hintergrund', e); }
   initRadar(loc ? loc.lat : m.latitude, loc ? loc.lon : m.longitude, !!data.demo);
 }
 
@@ -1061,16 +1061,27 @@ function drawStatic() {
 }
 
 function cloudSprite(col, alpha) {
-  const S = 360, c = document.createElement('canvas'); c.width = S; c.height = S / 2; const g = c.getContext('2d');
-  const blobs = 8 + Math.floor(Math.random() * 5);
-  for (let i = 0; i < blobs; i++) {
-    const bx = S * (.18 + Math.random() * .64), by = S / 2 * (.5 + Math.random() * .28) - Math.random() * S * .07, r = S * (.08 + Math.random() * .12);
-    const rg = g.createRadialGradient(bx, by, r * .15, bx, by, r);
-    rg.addColorStop(0, `rgba(${col},${alpha})`); rg.addColorStop(.6, `rgba(${col},${alpha * .55})`); rg.addColorStop(1, `rgba(${col},0)`);
-    g.fillStyle = rg; g.beginPath(); g.ellipse(bx, by, r * 1.4, r * .9, 0, 0, 7); g.fill();
+  // fractal value-noise cloud, shaded: bright top, soft shadowed base
+  const W = 256, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const img = g.createImageData(W, H), d = img.data;
+  const P = new Uint8Array(512); for (let i = 0; i < 256; i++) P[i] = i; for (let i = 255; i > 0; i--) { const k = Math.floor(Math.random() * (i + 1)); [P[i], P[k]] = [P[k], P[i]]; } for (let i = 0; i < 256; i++) P[256 + i] = P[i];
+  const fade = t => t * t * (3 - 2 * t), lerp = (a, b, t) => a + (b - a) * t;
+  const vn = (x, y) => { const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255, xf = x - Math.floor(x), yf = y - Math.floor(y);
+    const h = (a, b) => P[P[a] + b] / 255; const u = fade(xf), v = fade(yf);
+    return lerp(lerp(h(xi, yi), h(xi + 1, yi), u), lerp(h(xi, yi + 1), h(xi + 1, yi + 1), u), v); };
+  const fbm = (x, y) => { let s = 0, a = .5, f = 1; for (let o = 0; o < 5; o++) { s += a * vn(x * f, y * f); a *= .5; f *= 2.1; } return s; };
+  const [cr, cg, cb] = col.split(',').map(Number);
+  const cx = W / 2, cy = H * .6, rx = W * .44, ry = H * .4, ox = Math.random() * 100, oy = Math.random() * 100;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const dx = (x - cx) / rx, dy = (y - cy) / ry; const e = 1 - Math.sqrt(dx * dx + dy * dy * (dy < 0 ? 1 : 2.2));
+    const n = fbm(x / 48 + ox, y / 48 + oy);
+    let a = (n * 1.1 + e * 1.25 - .78); a = Math.max(0, Math.min(1, a * 2.6));
+    a = a * a * (3 - 2 * a) * alpha;
+    const shade = Math.max(0, Math.min(1, (y - cy * .55) / (H * .7)));
+    const k = 1 - shade * .42 + (1 - n) * .08;
+    const o = (y * W + x) * 4; d[o] = cr * k; d[o + 1] = cg * k; d[o + 2] = cb * k; d[o + 3] = a * 255;
   }
-  const base = g.createLinearGradient(0, S / 2 * .5, 0, S / 2); base.addColorStop(0, 'rgba(0,0,0,0)'); base.addColorStop(1, `rgba(0,0,0,${alpha * .3})`);
-  g.globalCompositeOperation = 'source-atop'; g.fillStyle = base; g.fillRect(0, 0, S, S / 2); g.globalCompositeOperation = 'source-over';
+  g.putImageData(img, 0, 0);
   return c.toDataURL('image/png');
 }
 function rainTile(snow, dir) {
@@ -1084,13 +1095,13 @@ function buildLayers() {
   layer.innerHTML = '';
   const W = innerWidth, H = innerHeight;
   const colS = sky.day ? (sky.rainy || sky.storm ? '150,162,180' : sky.cc > .6 ? '205,214,226' : '255,255,255') : '60,72,96';
-  const sprites = Array.from({ length: 4 }, () => cloudSprite(colS, sky.day && sky.cc > .6 ? .75 : .85));
+  const sprites = Array.from({ length: 5 }, () => cloudSprite(colS, sky.day && sky.cc > .6 ? .8 : .92));
   const n = Math.round(3 + sky.cc * 8);
   for (let i = 0; i < n; i++) {
-    const r = 60 + Math.random() * 150, w = r * 4.4, h = r * 2.2;
+    const r = 60 + Math.random() * 150, w = r * 4.4, h = r * 2.2; // sprite is 2:1
     const el = document.createElement('div'); el.className = 'cl';
     const dur = (W + w) / ((6 + Math.random() * 10) * (1 + sky.windK * 2.5)); // seconds
-    el.style.cssText = `width:${w}px;height:${h}px;top:${Math.random() * H * .5 - h / 2}px;left:0;opacity:${(sky.day && sky.cc > .6 ? .55 : .75) + Math.random() * .25};background-image:url(${sprites[i % 4]});animation-duration:${dur.toFixed(1)}s;animation-delay:-${(Math.random() * dur).toFixed(1)}s;animation-name:${sky.windDir > 0 ? 'driftR' : 'driftL'};--w:${w}px;--vw:${W}px`;
+    el.style.cssText = `width:${w}px;height:${h}px;top:${Math.random() * H * .5 - h / 2}px;left:0;opacity:${(sky.day && sky.cc > .6 ? .55 : .75) + Math.random() * .25};background-image:url(${sprites[i % 5]});animation-duration:${dur.toFixed(1)}s;animation-delay:-${(Math.random() * dur).toFixed(1)}s;animation-name:${sky.windDir > 0 ? 'driftR' : 'driftL'};--w:${w}px;--vw:${W}px`;
     layer.appendChild(el);
   }
   if (sky.rainy || sky.snowy || sky.storm) {
