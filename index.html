@@ -330,7 +330,7 @@ h2 small{font-weight:400;color:var(--ink-3)}
 (() => {
 'use strict';
 /* ---------- config ---------- */
-const VERSION = '2.11.02-15';
+const VERSION = '2.11.02-16';
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 const MODELS = [
@@ -425,14 +425,20 @@ function consensus(mm, i) {
 const level = s => s == null ? ['Keine Modellvergleiche', 'var(--ink-3)'] : s >= 80 ? ['Sehr sicher', 'var(--ok)'] : s >= 60 ? ['Sicher', 'var(--warn)'] : s >= 40 ? ['Unsicher', 'var(--bad)'] : ['Sehr unsicher', 'var(--worst)'];
 
 /* ---------- data ---------- */
-async function getJSON(url, ms = 12000) {
-  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
-  try {
-    const r = await fetch(url, { signal: ctl.signal });
-    const j = await r.json();
-    if (!r.ok || j.error) throw new Error(j.reason || ('HTTP ' + r.status));
-    return j;
-  } finally { clearTimeout(t); }
+async function getJSON(url, ms = 12000, retries = 0) {
+  for (let attempt = 0; ; attempt++) {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ctl.signal });
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.reason || ('HTTP ' + r.status));
+      return j;
+    } catch (e) {
+      const transient = /overload|429|5\d\d|abort|network|fetch/i.test(String(e.message || e.name));
+      if (attempt >= retries || !transient) throw e;
+      await new Promise(res => setTimeout(res, 1200 * Math.pow(2, attempt)));
+    } finally { clearTimeout(t); }
+  }
 }
 async function loadWeather(lat, lon) {
   const base = { latitude: lat, longitude: lon, timezone: 'auto', wind_speed_unit: 'kmh' };
@@ -445,8 +451,8 @@ async function loadWeather(lat, lon) {
   const nc = new URLSearchParams({ ...base, minutely_15: 'precipitation', forecast_minutely_15: 12 });
   const air = new URLSearchParams({ latitude: lat, longitude: lon, timezone: 'auto', current: 'european_aqi,pm10,pm2_5,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,ragweed_pollen' });
   const [a, b, c, q, w] = await Promise.all([
-    getJSON(API + '?' + main),
-    getJSON(API + '?' + multi).catch(() => null),
+    getJSON(API + '?' + main, 12000, 3),
+    getJSON(API + '?' + multi, 12000, 1).catch(() => null),
     getJSON(API + '?' + nc).catch(() => null),
     getJSON('https://air-quality-api.open-meteo.com/v1/air-quality?' + air).catch(() => null),
     getJSON(`https://api.brightsky.dev/alerts?lat=${lat}&lon=${lon}&tz=Europe/Berlin`, 8000).catch(() => null),
@@ -473,7 +479,7 @@ const DEMO = {"main":{"current":{"time":"2026-11-02T07:15","temperature_2m":7.4,
 let loc = store.get(LS.loc, null);   // {name, lat, lon}
 let favs = store.get(LS.favs, []);
 let data = null;
-let openDay = -1;
+let openDay = -1, autoRetry = 0;
 
 /* ---------- day summary ---------- */
 const partName = h => h < 6 ? 'nachts' : h < 11 ? 'vormittags' : h < 14 ? 'mittags' : h < 18 ? 'nachmittags' : 'abends';
@@ -762,7 +768,15 @@ async function loadFor(l, force) {
   } catch (e) {
     app.classList.remove('skel');
     if (cached && cached.key === l.lat + ',' + l.lon) { data = cached; render(); $('.foot').insertAdjacentHTML('afterbegin', 'Offline – zeigt gespeicherte Daten. '); }
-    else showMsg('Vorhersage nicht geladen', (navigator.onLine ? 'Der Wetterdienst ist nicht erreichbar (' + (e.message || 'Fehler') + '). In einer Datei-Vorschau ist der Internetzugriff meist gesperrt.' : 'Keine Internetverbindung.') + ' Aufbau und Darstellung kannst du trotzdem ansehen.', ['Vorschau mit Beispieldaten', loadDemo], ['Erneut versuchen', () => loadFor(l, true)]);
+    else {
+      const overloaded = /overload|429|5\d\d/i.test(String(e.message));
+      if (overloaded) {
+        showMsg('Wetterdienst gerade überlastet', 'Open-Meteo antwortet kurzzeitig nicht. Ich versuche es in 20 Sekunden automatisch noch einmal.', ['Jetzt erneut versuchen', () => loadFor(l, true)]);
+        clearTimeout(autoRetry); autoRetry = setTimeout(() => { if (loc === l && !data) loadFor(l, true); }, 20000);
+      } else {
+        showMsg('Vorhersage nicht geladen', (navigator.onLine ? 'Der Wetterdienst ist nicht erreichbar (' + (e.message || 'Fehler') + '). In einer Datei-Vorschau ist der Internetzugriff meist gesperrt.' : 'Keine Internetverbindung.') + ' Aufbau und Darstellung kannst du trotzdem ansehen.', ['Vorschau mit Beispieldaten', loadDemo], ['Erneut versuchen', () => loadFor(l, true)]);
+      }
+    }
   }
 }
 
@@ -944,7 +958,7 @@ function drawCities(x, W, H) {
   }
 }
 async function loadCityTemps() {
-  const near = CITIES.filter(([, la, lo]) => Math.abs(la - R.lat) < 4.5 && Math.abs(lo - R.lon) < 7).slice(0, 40);
+  const near = CITIES.filter(([, la, lo]) => Math.abs(la - R.lat) < 3 && Math.abs(lo - R.lon) < 5).slice(0, 25);
   const key = near.map(c => c[0]).join('|');
   if (!near.length || (key === R.tempsKey && Date.now() - R.tempsAt < 10 * 60 * 1000)) return;
   try {
