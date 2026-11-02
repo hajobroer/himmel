@@ -151,6 +151,17 @@ h2 small{font-weight:400;color:var(--ink-3)}
 .pol{display:flex;flex-wrap:wrap;gap:8px}
 .pol span{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--glass-2);font-size:13px}
 .pol i{width:8px;height:8px;border-radius:50%}
+/* explain */
+.h2i{display:flex;align-items:center;gap:8px}
+.h2i small{flex:1}
+.info{flex:none;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--glass-2);color:var(--ink);font:italic 600 13px Georgia,serif;cursor:pointer}
+.info[aria-expanded="true"]{background:var(--ink);color:#0b2a6b}
+.explain{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s cubic-bezier(.2,.7,.2,1)}
+.explain>div{overflow:hidden;min-height:0}
+.explain.open{grid-template-rows:1fr}
+.explain .inner{padding:4px 0 14px;font-size:14px;line-height:1.5;color:var(--ink-2)}
+.explain p{margin:0 0 8px}.explain b{color:var(--ink)}
+.explain .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--lvl);vertical-align:middle;margin-right:2px}
 /* daily */
 .days{display:flex;flex-direction:column}
 .day{display:grid;grid-template-columns:44px 32px 36px 1fr 10px;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--edge);background:none;border-left:0;border-right:0;border-bottom:0;color:var(--ink);font:inherit;text-align:left;cursor:pointer;width:100%}
@@ -319,7 +330,7 @@ h2 small{font-weight:400;color:var(--ink-3)}
 (() => {
 'use strict';
 /* ---------- config ---------- */
-const VERSION = '2.11.02-14';
+const VERSION = '2.11.02-15';
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 const MODELS = [
@@ -682,7 +693,14 @@ function render() {
     </div></div>
   </section>
   <section aria-label="7 Tage">
-    <h2>7 Tage <small>– Punkt rechts zeigt, wie einig sich die Modelle sind. Tag antippen für Details.</small></h2>
+    <h2 class="h2i">7 Tage <small>– Tag antippen für Details</small><button class="info" id="infoBtn" aria-expanded="false" aria-label="Was bedeuten die Punkte?">i</button></h2>
+    <div class="explain" id="explain"><div><div class="inner">
+      <p><b>Die Vorhersage</b> kommt aus einem Modell, dem DWD ICON – für Deutschland das beste. Die farbigen Punkte ändern sie nicht.</p>
+      <p><b>Die Punkte</b> zeigen, wie sehr fünf unabhängige Wetterdienste (DWD, ECMWF, NOAA, Météo-France, UK Met Office) für den Tag übereinstimmen. Je einiger, desto verlässlicher.</p>
+      <p><b>Berechnung pro Tag:</b> Spanne der Höchst- und Tiefstwerte aller Modelle, dazu wie viele Modelle Niederschlag erwarten und wie weit die Mengen auseinanderliegen. Ergibt 0 bis 100 Punkte.</p>
+      <p><span class="dot" style="--lvl:var(--ok)"></span> ab 80 sehr sicher &nbsp; <span class="dot" style="--lvl:var(--warn)"></span> 60–79 sicher &nbsp; <span class="dot" style="--lvl:var(--bad)"></span> 40–59 unsicher &nbsp; <span class="dot" style="--lvl:var(--worst)"></span> darunter sehr unsicher</p>
+      <p><b>Lesen:</b> Orange beim Regen heißt „Schirm mitnehmen, aber nicht absagen“. Rot heißt: Richtung stimmt vielleicht, Zahlen nicht. Der blasse Schatten hinter dem Temperaturbalken zeigt die Spanne aller Modelle – breit bedeutet unsicher.</p>
+    </div></div></div>
     <div class="days">${dailyHTML}</div>
   </section>
   <section aria-label="Details">
@@ -715,6 +733,7 @@ function render() {
     if (openDay !== i) row.click();
     setTimeout(() => row.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' }), 60);
   }));
+  const ib = $('#infoBtn'); if (ib) ib.addEventListener('click', () => { const o = !$('#explain').classList.contains('open'); $('#explain').classList.toggle('open', o); ib.setAttribute('aria-expanded', o); });
   document.body.classList.add('ready');
   $('#refresh').addEventListener('click', () => loadFor(data.demo ? { name: 'Marienhafe', lat: 53.52, lon: 7.27 } : loc, true));
   try { paintSky(m); } catch (e) { console.warn('Himmel-Hintergrund', e); }
