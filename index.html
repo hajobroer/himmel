@@ -347,7 +347,7 @@ body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::af
 (() => {
 'use strict';
 /* ---------- config ---------- */
-const VERSION = '2.11.03-19';
+const VERSION = '2.11.03-20';
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 const MODELS = [
@@ -467,12 +467,13 @@ async function loadWeather(lat, lon) {
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum' });
   const nc = new URLSearchParams({ ...base, minutely_15: 'precipitation', forecast_minutely_15: 12 });
   const air = new URLSearchParams({ latitude: lat, longitude: lon, timezone: 'auto', current: 'european_aqi,pm10,pm2_5,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,ragweed_pollen' });
-  const [a, b, c, q, w] = await Promise.all([
+  const [a, b, c, q, w, st] = await Promise.all([
     getJSON(API + '?' + main, 12000, 3),
     getJSON(API + '?' + multi, 12000, 1).catch(() => null),
     getJSON(API + '?' + nc).catch(() => null),
     getJSON('https://air-quality-api.open-meteo.com/v1/air-quality?' + air).catch(() => null),
     getJSON(`https://api.brightsky.dev/alerts?lat=${lat}&lon=${lon}&tz=Europe/Berlin`, 8000).catch(() => null),
+    getJSON(`https://api.brightsky.dev/current_weather?lat=${lat}&lon=${lon}&tz=Europe/Berlin`, 8000).catch(() => null),
   ]);
   // yesterday comparison, then drop the past day from daily arrays
   let yday = null;
@@ -486,7 +487,14 @@ async function loadWeather(lat, lon) {
     if (c.n >= 3) { a.daily.temperature_2m_max[i] = c.tmax; a.daily.temperature_2m_min[i] = c.tmin; if (c.rain != null) a.daily.precipitation_sum[i] = c.rain; }
   }
   const alerts = w && Array.isArray(w.alerts) ? w.alerts.filter(x => x.status !== 'test') : null;
-  return { main: a, multi: b, nowcast: c, air: q, alerts, yday, at: Date.now() };
+  let station = null;
+  if (st && st.weather) {
+    const wx = st.weather, src = (st.sources || [])[0] || {};
+    const p10 = wx.precipitation_10, p60 = wx.precipitation_60, cond = wx.condition;
+    station = { name: src.station_name || 'DWD-Station', km: src.distance != null ? Math.round(src.distance / 1000) : null, cond, p10, p60, temp: wx.temperature, time: wx.timestamp,
+      wet: ['rain', 'sleet', 'snow', 'hail', 'thunderstorm'].includes(cond) || (p10 != null && p10 > 0), recent: p60 != null && p60 > 0 };
+  }
+  return { main: a, multi: b, nowcast: c, air: q, alerts, yday, station, at: Date.now() };
 }
 // Radar as data source: read the precipitation pixel above the location (RainViewer, now and +10/+20/+30 min)
 function loadImg(url, ms = 6000) {
@@ -502,10 +510,10 @@ async function radarNow(lat, lon) {
   for (const f of frames) {
     const im = await loadImg(`${j.host}${f.path}/256/${z}/${tx}/${ty}/2/1_1.png`);
     const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.drawImage(im, 0, 0);
-    const x0 = Math.max(0, Math.min(249, px - 3)), y0 = Math.max(0, Math.min(249, py - 3));
-    const d = g.getImageData(x0, y0, 7, 7).data; let hit = 0, sum = 0;
-    for (let i = 3; i < d.length; i += 4) if (d[i] > 60) { hit++; sum += d[i]; }
-    out.push({ time: f.time, wet: hit >= 5, strength: hit ? sum / hit / 255 : 0 });
+    const x0 = Math.max(0, Math.min(245, px - 5)), y0 = Math.max(0, Math.min(245, py - 5));
+    const d = g.getImageData(x0, y0, 11, 11).data; let hit = 0, sum = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 40) { hit++; sum += (d[i] + d[i + 1]) / 2; } // scheme 2: brighter = heavier
+    out.push({ time: f.time, wet: hit >= 2, strength: hit ? Math.min(1, sum / hit / 200) : 0 });
   }
   return { now: out[0].wet, next: out.slice(1).map(o => o.wet), strength: out[0].strength, at: Date.now() };
 }
@@ -582,8 +590,9 @@ function render() {
   const { main: m, multi: mm, nowcast: nc } = data;
   const cur = m.current, H = m.hourly, D = m.daily;
   let [condText, condKind] = wmo(cur.weather_code);
-  const radWet = data.radar && Date.now() - data.radar.at < 40 * 60 * 1000 && data.radar.now;
-  if (radWet && cur.weather_code < 51) { condText = (data.radar.strength < .35 ? 'Nieselregen' : 'Regen') + ' (Radar)'; condKind = data.radar.strength < .35 ? 'drizzle' : 'rain'; }
+  const stn = data.station && data.station.km != null && data.station.km <= 25 ? data.station : null;
+  const radWet = (data.radar && Date.now() - data.radar.at < 40 * 60 * 1000 && data.radar.now) || !!(stn && stn.wet);
+  if (radWet && cur.weather_code < 51) { const light = !(data.radar && data.radar.now) || data.radar.strength < .35; condText = (light ? 'Nieselregen' : 'Regen') + (data.radar && data.radar.now ? ' (Radar)' : ' (Station)'); condKind = light ? 'drizzle' : 'rain'; }
   const day = !!cur.is_day;
   const today = consensus(mm, 0);
 
@@ -627,6 +636,11 @@ function render() {
         if (rad.now) { headline = rad.next.some(x => x) ? 'Radar: Regen über dir, hält vorerst an' : 'Radar: Regen über dir, lässt in etwa 10–20 Minuten nach'; ncDryUntil = -1; radLine = '<div class="rl rl-wet">Radarbild bestätigt Niederschlag an deinem Ort</div>'; }
         else if (rad.next.some(x => x)) { const k = rad.next.findIndex(x => x); headline = `Radar: Regen zieht in etwa ${(k + 1) * 10} Minuten auf`; ncDryUntil = -1; radLine = '<div class="rl rl-wet">Radar-Nowcast sieht Niederschlag in den nächsten 30 Minuten</div>'; }
         else radLine = '<div class="rl">Radar bestätigt: aktuell trocken an deinem Ort</div>';
+      }
+      if (stn) {
+        if (stn.wet) { if (!(rad && (rad.now || rad.next.some(x => x)))) { headline = 'Messstation meldet Niederschlag'; ncDryUntil = -1; } radLine += `<div class="rl rl-wet">Station ${esc(stn.name)} (${stn.km} km): ${stn.cond === 'rain' ? 'Regen' : 'Niederschlag'}${stn.p10 != null ? ', ' + stn.p10.toFixed(1) + ' mm in 10 Min.' : ''}</div>`; }
+        else if (stn.recent) radLine += `<div class="rl">Station ${esc(stn.name)} (${stn.km} km): ${stn.p60.toFixed(1)} mm in der letzten Stunde</div>`;
+        else radLine += `<div class="rl">Station ${esc(stn.name)} (${stn.km} km): trocken</div>`;
       }
       ncHTML = `<section aria-label="Regen in den nächsten 3 Stunden">
         <div class="sh"><span class="shi">💧</span>Nächste 3 Stunden</div>
