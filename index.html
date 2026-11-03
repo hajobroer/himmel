@@ -92,7 +92,7 @@ section:nth-of-type(1){animation-delay:.08s}section:nth-of-type(2){animation-del
 .qd .qdot{width:6px;height:6px;border-radius:50%;background:var(--lvl);margin-top:3px}
 @media (min-width:600px){.qd .qn{font-size:13px}.qd .qt{font-size:14px}}
 /* reliability */
-.rel{margin-top:14px;padding:14px 16px;border-radius:20px;background:var(--glass);border:1px solid var(--edge)}
+.rel-hint{font-size:14px;color:var(--warn);margin:8px auto 0;max-width:34em;text-align:center;line-height:1.45}
 .rel .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .rel b{font-weight:600}
 .rel .t{font-size:15px}
@@ -166,6 +166,20 @@ body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::af
 /* apple-style section headers */
 .sh{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px}
 .sh .shi{font-size:12px;opacity:.8}
+/* welcome */
+.welcome{margin-top:34px;text-align:center}
+.welcome .wico svg{width:84px;height:84px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.35))}
+.welcome h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:6px 0 4px}
+.welcome .wlead{color:var(--ink-2);font-size:15px;margin:0 auto 22px;max-width:30em;line-height:1.45}
+.wbtn{display:flex;align-items:center;gap:14px;width:100%;margin-top:10px;padding:14px 16px;border:1px solid var(--edge);border-radius:20px;background:var(--glass);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.wbtn.primary{background:linear-gradient(135deg,rgba(124,196,255,.4),rgba(124,196,255,.15));border-color:rgba(124,196,255,.5)}
+.wbtn.static{cursor:default}
+.wbtn>span:last-child{flex:1;min-width:0}
+.wbtn b{display:block;font-size:16px;font-weight:600}
+.wbtn small{display:block;color:var(--ink-2);font-size:13px;line-height:1.35;margin-top:1px}
+.wb-ico{flex:none;width:40px;height:40px;border-radius:12px;background:var(--glass-2);display:grid;place-items:center;font-size:20px}
+.wfavs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.wfav{padding:6px 12px;border-radius:999px;border:1px solid var(--edge);background:var(--glass-2);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 /* explain */
 .h2i{display:flex;align-items:center;gap:8px}
 .h2i small{flex:1}
@@ -279,13 +293,17 @@ body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::af
 .gps small{display:block;font-weight:400;font-size:13px;color:rgba(255,255,255,.7)}
 .res h3{font-size:13px;font-weight:600;color:rgba(255,255,255,.55);margin:24px 0 10px}
 .favs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.fc{position:relative;display:grid;gap:2px;padding:14px 14px 12px;border:0;border-radius:18px;background:rgba(255,255,255,.12);color:#fff;font:inherit;text-align:left;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.14);min-height:96px}
+.fc{position:relative;display:grid;gap:2px;padding:14px 14px 12px;border:0;border-radius:18px;box-sizing:border-box;background:rgba(255,255,255,.12);color:#fff;font:inherit;text-align:left;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.14);min-height:96px}
 .fc .fn{font-size:16px;font-weight:600;padding-right:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fc small{color:rgba(255,255,255,.6);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fc .ft{display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:24px;font-weight:300;min-height:30px}
 .fc .ft svg{width:30px;height:30px}
 .fc .ft em{font-style:normal;font-size:12px;color:rgba(255,255,255,.5);font-weight:400}
 .fc .star{position:absolute;right:8px;top:8px;padding:6px;color:#ffd166;opacity:.95}
+.fc .fmv{position:absolute;right:8px;bottom:8px}
+.fc .up{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.14);color:#fff;font-size:12px;cursor:pointer}
+.fc .up.off{opacity:.25;pointer-events:none}
+.res h3 .hsub{font-weight:400;text-transform:none;letter-spacing:0}
 .fc .star svg{display:block}
 .ri{display:flex;align-items:center;gap:12px;width:100%;padding:13px 6px;background:none;border:0;border-top:1px solid rgba(255,255,255,.1);color:#fff;font:inherit;font-size:16px;text-align:left;cursor:pointer;border-radius:12px}
 .ri:first-of-type{border-top:0}
@@ -347,7 +365,7 @@ body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::af
 (() => {
 'use strict';
 /* ---------- config ---------- */
-const VERSION = '2.11.03-23';
+const VERSION = '2.11.03-25';
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 const MODELS = [
@@ -597,7 +615,7 @@ function render() {
   const drizLevel = cur.weather_code < 51 ? drizTier(cur.relative_humidity_2m, cur.cloud_cover_low ?? cur.cloud_cover, cur.wind_speed_10m) : 0;
   const drizNow = drizLevel > 0;
   let drizUntil = -1;
-  if (drizNow) { let hi0 = H.time.indexOf(cur.time.slice(0, 13) + ':00'); if (hi0 >= 0) { let k = hi0; while (k < H.time.length && k < hi0 + 12 && drizzleLikely(k)) k++; drizUntil = parseInt(H.time[Math.min(k, H.time.length - 1)].slice(11, 13), 10); } }
+  if (drizNow) { let hi0 = H.time.indexOf(cur.time.slice(0, 13) + ':00'); if (hi0 >= 0) { let k = hi0; while (k < H.time.length && k < hi0 + 12 && drizzleLikely(k)) k++; drizUntil = parseInt(H.time[Math.min(k, H.time.length - 1)].slice(11, 13), 10); if (k <= hi0 + 1) drizUntil = -1; } }
   const stnAny = data.station && (data.station.km == null || data.station.km <= 50) ? data.station : null;
   const stn = stnAny && stnAny.km != null && stnAny.km <= 25 ? stnAny : null;
   const radWet = (data.radar && Date.now() - data.radar.at < 40 * 60 * 1000 && data.radar.now) || !!(stn && stn.wet);
@@ -664,18 +682,14 @@ function render() {
     }
   }
 
-  // reliability text
+  // model-agreement hint, shown only when it matters
   let relHTML = '';
-  if (today.score != null) {
-    const [lbl, col] = level(today.score);
-    const rainTxt = today.nRain ? (today.wet === today.nRain ? 'Alle Modelle erwarten Niederschlag.' : today.wet === 0 ? 'Kein Modell erwartet nennenswerten Niederschlag.' : `${today.wet} von ${today.nRain} Modellen erwarten Niederschlag.`) : '';
-    relHTML = `<div class="rel" style="--lvl:${col}">
-      <div class="row"><span class="t"><b>${lbl}</b> für heute</span><span class="pct">${today.n} Modelle</span></div>
-      <div class="meter"><i style="width:${today.score}%;--full:${(10000 / today.score).toFixed(0)}%"></i></div>
-      <p>Höchstwert zwischen ${deg(today.tmaxLo)} und ${deg(today.tmaxHi)}, Mittel ${deg(today.tmax)}. ${rainTxt}</p>
-    </div>`;
+  if (today.score != null && today.score < 80) {
+    const rainSplit = today.nRain && today.wet > 0 && today.wet < today.nRain;
+    const tempSplit = today.spread >= 2;
+    let hint = rainSplit ? `Die Wettermodelle sind sich beim Regen heute uneins (${today.wet} von ${today.nRain} erwarten welchen) – Schirm einplanen.` : tempSplit ? `Die Wettermodelle sind sich bei der Temperatur heute uneins (${deg(today.tmaxLo)} bis ${deg(today.tmaxHi)}) – Schichten statt einer Jacke.` : 'Die Wettermodelle sind sich heute nur teilweise einig.';
+    relHTML = `<div class="rel-hint">${hint}</div>`;
   }
-
   const todayDS = daySummary(H, D, 0, parseInt(cur.time.slice(11, 13), 10), ncDryUntil, !!radWet);
   if (todayDS && !radWet && drizNow && /trocken/.test(todayDS.txt)) todayDS.txt = todayDS.txt.replace(/<b>[^<]*trocken<\/b>/, `<b>Kein nennenswerter Regen, ${drizLevel === 2 ? 'zeitweise feiner Niesel möglich' : 'leichter Niesel nicht ausgeschlossen'}${drizUntil > 0 ? ' bis etwa ' + drizUntil + ' Uhr' : ''}</b>`).replace(' – ideal für Sport oder Zeit mit der Familie draußen.', drizLevel === 2 ? ' – für draußen reicht eine leichte Jacke.' : ' – draußen geht, eine Jacke schadet nicht.');
   const dailyHTML = D.time.map((t, i) => {
@@ -828,13 +842,34 @@ function render() {
   initRadar(loc ? loc.lat : m.latitude, loc ? loc.lon : m.longitude, !!data.demo);
 }
 
+function showWelcome(reason) {
+  // friendly start screen instead of an error box
+  const favHTML = favs.length ? `<div class="wfavs">${favs.slice(0, 4).map(f => `<button class="wfav" data-lat="${f.lat}" data-lon="${f.lon}" data-name="${esc(f.name)}">${esc(f.name)}</button>`).join('')}</div>` : '';
+  app.innerHTML = `<div class="welcome">
+    <div class="wico">${icon('suncloud', true)}</div>
+    <h1>Willkommen bei Himmel</h1>
+    <p class="wlead">${reason === 'denied' ? 'Dein Standort ist für Safari gesperrt – kein Problem, du hast drei Wege zum Wetter.' : reason === 'nofix' ? 'Gerade kein GPS-Signal – such dir einen Ort oder nimm einen Favoriten.' : 'Wo soll es losgehen?'}</p>
+    <button class="wbtn primary" id="wGps"><span class="wb-ico">◎</span><span><b>Mein Standort</b><small>${reason === 'denied' ? 'Freigeben: Safari „aA“ → Website-Einstellungen → Standort → Erlauben' : 'GPS verwenden, Ort wird automatisch erkannt'}</small></span></button>
+    <button class="wbtn" id="wSearch"><span class="wb-ico">⌕</span><span><b>Ort suchen</b><small>Stadt eingeben, mit dem Stern als Favorit speichern</small></span></button>
+    <div class="wbtn static"><span class="wb-ico">★</span><span><b>Favoriten</b><small>Der oberste Favorit ist dein Startort. In der Suche mit den Pfeilen sortieren.</small>${favHTML}</span></div>
+  </div>`;
+  $('#wGps').addEventListener('click', () => locate(false));
+  $('#wSearch').addEventListener('click', openSearch);
+  app.querySelectorAll('.wfav').forEach(b => b.addEventListener('click', () => loadFor({ name: b.dataset.name, lat: +b.dataset.lat, lon: +b.dataset.lon }, false)));
+  defaultSky();
+}
+function defaultSky() {
+  const h = new Date().getHours(), day = h >= 7 && h < 18;
+  sky = { top: hex(day ? '#1457c9' : '#070c1c'), bot: hex(day ? '#86c1f2' : '#1a2a4a'), day, cc: .35, rainy: false, snowy: false, storm: false, fog: false, intensity: 0, stars: !day, prog: Math.max(0, Math.min(1, (h - 7) / 11)), golden: 0, windK: .2, windDir: 1, showSun: day, showMoon: !day };
+  try { drawStatic(); buildLayers(); } catch (e) {}
+}
 function showMsg(title, text, ...actions) {
   app.innerHTML = `<div class="msg"><b>${esc(title)}</b>${esc(text)}${actions.length ? '<br>' + actions.map((a, i) => `<button class="mb" data-k="${i}">${esc(a[0])}</button>`).join(' ') : ''}</div>`;
   app.querySelectorAll('.mb').forEach(b => b.addEventListener('click', () => actions[+b.dataset.k][1]()));
 }
 
 async function loadFor(l, force) {
-  if (!l) { openSearch(); showMsg('Kein Ort gewählt', 'Suche eine Stadt oder nutze deinen Standort.', ['Ort suchen', openSearch]); return; }
+  if (!l) { showWelcome('start'); return; }
   loc = l; store.set(LS.loc, l);
   $('#locName').textContent = l.name;
   const cached = store.get(LS.cache, null);
@@ -871,7 +906,7 @@ function loadDemo() {
   render();
 }
 function locate(retry) {
-  if (!navigator.geolocation) { showMsg('Standort nicht verfügbar', 'Dein Browser erlaubt keine Standortabfrage. Suche den Ort manuell.', ['Ort suchen', openSearch], ['Vorschau mit Beispieldaten', loadDemo]); return; }
+  if (!navigator.geolocation) { if (favs.length) { loadFor({ name: favs[0].name, lat: favs[0].lat, lon: favs[0].lon }, false); return; } showWelcome('nofix'); return; }
   $('#locName').textContent = 'Standort wird ermittelt';
   navigator.geolocation.getCurrentPosition(async p => {
     const lat = +p.coords.latitude.toFixed(3), lon = +p.coords.longitude.toFixed(3);
@@ -887,8 +922,9 @@ function locate(retry) {
       ? 'Safari darf deinen Standort nicht nutzen. Freigeben: In Safari auf „aA“ in der Adresszeile → Website-Einstellungen → Standort → Erlauben. Vom Home-Bildschirm aus: iPhone-Einstellungen → Datenschutz → Ortungsdienste → Safari-Websites → Beim Verwenden.'
       : 'Kein GPS-Signal. Drinnen oder im Flugmodus kann das passieren.';
     if (loc) { $('#locName').textContent = loc.name; loadFor(loc, false); return; }
+    if (favs.length) { loadFor({ name: favs[0].name, lat: favs[0].lat, lon: favs[0].lon }, false); return; } // first favourite = start location
     $('#locName').textContent = 'Himmel';
-    showMsg(title, text, ['Erneut versuchen', () => locate(false)], ['Ort suchen', openSearch]);
+    showWelcome(denied ? 'denied' : 'nofix');
   }, retry ? { timeout: 15000, maximumAge: 10 * 60 * 1000, enableHighAccuracy: false } : { timeout: 8000, maximumAge: 5 * 60 * 1000 });
 }
 
@@ -908,6 +944,11 @@ function bindItems() {
   rEl.querySelectorAll('.ri[data-lat],.fc[data-lat]').forEach(el => {
     const r = { name: el.dataset.name, lat: +el.dataset.lat, lon: +el.dataset.lon, sub: el.dataset.sub || '' };
     el.addEventListener('click', e => {
+      if (e.target.closest('[data-up]')) {
+        e.stopPropagation(); const i = favs.findIndex(f => f.lat === r.lat && f.lon === r.lon);
+        if (i > 0) { [favs[i - 1], favs[i]] = [favs[i], favs[i - 1]]; store.set(LS.favs, favs); renderFavs(); }
+        return;
+      }
       if (e.target.closest('[data-fav]')) {
         favs = isFav(r) ? favs.filter(f => !(f.lat === r.lat && f.lon === r.lon)) : [...favs, r];
         store.set(LS.favs, favs);
@@ -923,10 +964,11 @@ const favTemp = new Map();
 function favCard(r) {
   const k = r.lat + ',' + r.lon, t = favTemp.get(k);
   const ft = t ? `${icon(wmo(t.code)[1], !!t.day)}<span>${Math.round(t.t)}°</span>` : `<em>${data && data.demo ? 'Vorschau' : 'lädt'}</em>`;
-  return `<button class="fc" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${esc(r.name)}" data-sub="${esc(r.sub || '')}">
+  return `<div class="fc" role="button" tabindex="0" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${esc(r.name)}" data-sub="${esc(r.sub || '')}">
     <span class="fn">${esc(r.name)}</span><small>${esc(r.sub || '')}</small>
     <span class="ft" data-k="${k}">${ft}</span>
-    <span class="star on" data-fav aria-label="Favorit entfernen">${starSvg(true)}</span></button>`;
+    <span class="star on" data-fav aria-label="Favorit entfernen">${starSvg(true)}</span>
+    <span class="fmv"><span class="up ${favs.indexOf(r) === 0 ? 'off' : ''}" data-up role="button" aria-label="Nach oben">▲</span></span></div>`;
 }
 async function loadFavTemps() {
   if (data && data.demo) return;
@@ -941,7 +983,7 @@ async function loadFavTemps() {
   }
 }
 function renderFavs() {
-  rEl.innerHTML = favs.length ? `<h3>Favoriten</h3><div class="favs">${favs.map(favCard).join('')}</div>` : `<h3>Favoriten</h3><div class="hint">Noch keine. Suche einen Ort und tippe auf den Stern.</div>`;
+  rEl.innerHTML = favs.length ? `<h3>Favoriten <span class="hsub">– oberster ist dein Startort, ▲ sortiert</span></h3><div class="favs">${favs.map(favCard).join('')}</div>` : `<h3>Favoriten</h3><div class="hint">Noch keine. Suche einen Ort und tippe auf den Stern. Der oberste Favorit wird dein Startort.</div>`;
   bindItems(); loadFavTemps();
 }
 let qt;
