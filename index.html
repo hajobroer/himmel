@@ -164,8 +164,8 @@ body.raining section:nth-of-type(3n)::before,body.raining .qd button:nth-child(3
 body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::after,body.snowing .warn::after{content:"";position:absolute;left:0;right:0;top:-2px;height:7px;border-radius:24px 24px 3px 3px;background:linear-gradient(180deg,#ffffff,rgba(255,255,255,.75) 70%,rgba(255,255,255,0));pointer-events:none;box-shadow:0 1px 2px rgba(0,0,0,.15)}
 @media (prefers-reduced-motion:reduce){body.raining section::before,body.raining .rel::before,body.raining .qd button::before,body.raining .warn::before{animation:none}}
 /* apple-style section headers */
-.sh{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px}
-.sh .shi{font-size:12px;opacity:.8}
+.secH{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px}
+.secH .shi{font-size:12px;opacity:.8}
 /* welcome */
 .welcome{margin-top:34px;text-align:center}
 .welcome .wico svg{width:84px;height:84px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.35))}
@@ -292,19 +292,22 @@ body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::af
 .gps{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:14px 16px;border:0;border-radius:18px;background:linear-gradient(135deg,rgba(124,196,255,.35),rgba(124,196,255,.12));color:#fff;font:inherit;font-size:16px;font-weight:600;text-align:left;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
 .gps small{display:block;font-weight:400;font-size:13px;color:rgba(255,255,255,.7)}
 .res h3{font-size:13px;font-weight:600;color:rgba(255,255,255,.55);margin:24px 0 10px}
-.favs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.fc{position:relative;display:grid;gap:2px;padding:14px 14px 12px;border:0;border-radius:18px;box-sizing:border-box;background:rgba(255,255,255,.12);color:#fff;font:inherit;text-align:left;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.14);min-height:96px}
-.fc .fn{font-size:16px;font-weight:600;padding-right:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fc small{color:rgba(255,255,255,.6);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fc .ft{display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:24px;font-weight:300;min-height:30px}
-.fc .ft svg{width:30px;height:30px}
-.fc .ft em{font-style:normal;font-size:12px;color:rgba(255,255,255,.5);font-weight:400}
-.fc .star{position:absolute;right:8px;top:8px;padding:6px;color:#ffd166;opacity:.95}
-.fc .fmv{position:absolute;right:8px;bottom:8px}
-.fc .up{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.14);color:#fff;font-size:12px;cursor:pointer}
-.fc .up.off{opacity:.25;pointer-events:none}
-.res h3 .hsub{font-weight:400;text-transform:none;letter-spacing:0}
+.favs{display:grid;gap:8px}
+.fc{position:relative;display:grid;grid-template-columns:64px 1fr auto auto;align-items:center;gap:12px;padding:12px 10px 12px 14px;border-radius:18px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);color:#fff;cursor:pointer;user-select:none;-webkit-user-select:none;transition:background .15s}
+.fc:active{background:rgba(255,255,255,.16)}
+.fc.dragging{background:rgba(255,255,255,.2);box-shadow:0 10px 30px rgba(0,0,0,.45);z-index:2;transition:none}
+.fc .ft{display:flex;align-items:center;gap:6px;font-size:20px;font-weight:300}
+.fc .ft svg{width:28px;height:28px}
+.fc .ft b{font-weight:300}
+.fc .ft em{font-style:normal;color:rgba(255,255,255,.5);font-size:14px}
+.fc .fn{min-width:0}
+.fc .fn b{display:block;font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc .fn small{display:block;color:rgba(255,255,255,.55);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc .star{padding:8px;color:#ffd166}
 .fc .star svg{display:block}
+.fc .grip{display:grid;gap:3px;padding:10px 6px 10px 10px;touch-action:none;cursor:grab;opacity:.55}
+.fc .grip i{display:block;width:18px;height:2px;border-radius:1px;background:#fff}
+.fc.dragging .grip{cursor:grabbing}
 .ri{display:flex;align-items:center;gap:12px;width:100%;padding:13px 6px;background:none;border:0;border-top:1px solid rgba(255,255,255,.1);color:#fff;font:inherit;font-size:16px;text-align:left;cursor:pointer;border-radius:12px}
 .ri:first-of-type{border-top:0}
 .ri:active{background:rgba(255,255,255,.08)}
@@ -365,7 +368,7 @@ body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::af
 (() => {
 'use strict';
 /* ---------- config ---------- */
-const VERSION = '2.11.03-25';
+const VERSION = '2.11.03-26';
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 const MODELS = [
@@ -674,7 +677,7 @@ function render() {
         else radLine += `<div class="rl">Station ${esc(stn.name)} (${stn.km} km): trocken</div>`;
       }
       ncHTML = `<section aria-label="Regen in den nächsten 3 Stunden">
-        <div class="sh"><span class="shi">💧</span>Nächste 3 Stunden</div>
+        <div class="secH"><span class="shi">💧</span>Nächste 3 Stunden</div>
         <div class="ncs">${headline}</div>${radLine}
         <div class="nc">${vals.map(v => `<i class="${v < 0.1 ? 'z' : ''}" style="height:${Math.max(2, v / mx * 54)}px" title="${v.toFixed(1)} mm"></i>`).join('')}</div>
         <div class="ncx"><span>jetzt</span><span>1 Std.</span><span>2 Std.</span><span>3 Std.</span></div>
@@ -748,7 +751,7 @@ function render() {
     const pol = [['Gräser', ac.grass_pollen], ['Birke', ac.birch_pollen], ['Erle', ac.alder_pollen], ['Beifuß', ac.mugwort_pollen], ['Ambrosia', ac.ragweed_pollen]].filter(x => x[1] != null);
     const polL = v => v < 1 ? ['keine', 'var(--ink-3)'] : v < 10 ? ['gering', 'var(--ok)'] : v < 50 ? ['mittel', 'var(--warn)'] : ['hoch', 'var(--worst)'];
     const active = pol.filter(x => x[1] >= 1).sort((x, y) => y[1] - x[1]);
-    airHTML = `<section aria-label="Luft und Pollen"><div class="sh"><span class="shi">✿</span>Luft und Pollen</div>
+    airHTML = `<section aria-label="Luft und Pollen"><div class="secH"><span class="shi">✿</span>Luft und Pollen</div>
       <div class="air">${aqiL ? `<div class="aq"><small>Luftqualität</small><b style="color:${aqiL[1]}">${aqiL[0]}</b><em>Index ${Math.round(aqi)}, Feinstaub PM2,5 ${ac.pm2_5 != null ? Math.round(ac.pm2_5) : '–'} µg/m³</em></div>` : ''}
       <div class="pol">${active.length ? active.slice(0, 4).map(([n, v]) => { const [l, c] = polL(v); return `<span><i style="background:${c}"></i>${n}: ${l}</span>`; }).join('') : '<span><i style="background:var(--ok)"></i>Pollenflug: derzeit kein nennenswerter</span>'}</div></div></section>`;
   }
@@ -774,7 +777,7 @@ function render() {
   </div>
   ${ncHTML}
   <section aria-label="Regenradar">
-    <div class="sh"><span class="shi">◎</span>Regenradar</div>
+    <div class="secH"><span class="shi">◎</span>Regenradar</div>
     <div class="radar" id="radar" role="button" tabindex="0" aria-label="Regenradar vergrößern"><canvas id="rcv"></canvas><div class="pin"></div>
       <div class="rt" id="rtmini">–</div>
       <div class="tap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>Vergrößern</div>
@@ -783,7 +786,7 @@ function render() {
     </div>
   </section>
   <section aria-label="Nächste 24 Stunden">
-    <div class="sh"><span class="shi">◷</span>Wetterlage</div>
+    <div class="secH"><span class="shi">◷</span>Wetterlage</div>
     <div class="hs"><div class="hours" style="width:${hours.length * colW}px">
       ${hours.map((i, k) => { const hDry = ncDryUntil >= 0 && H.time[i].slice(0, 10) === cur.time.slice(0, 10) && parseInt(H.time[i].slice(11, 13), 10) <= ncDryUntil && (H.precipitation_probability[i] ?? 0) < 70; let code = H.weather_code[i]; if (hDry && code >= 51) code = 3; if (k === 0 && nowWet && code < 51) code = 61; const [, kk] = wmo(code); const p = hDry ? 0 : H.precipitation_probability[i]; return `<div class="hour ${k === 0 ? 'first' : ''}">
         <div class="hh">${k === 0 ? 'Jetzt' : parseInt(hm(H.time[i]), 10) + ' Uhr'}</div>
@@ -795,7 +798,7 @@ function render() {
     </div></div>
   </section>
   <section aria-label="7 Tage">
-    <div class="sh h2i"><span class="shi">▦</span>7-Tage-Vorhersage<small></small><button class="info" id="infoBtn" aria-expanded="false" aria-label="Was bedeuten die Punkte?">i</button></div>
+    <div class="secH h2i"><span class="shi">▦</span>7-Tage-Vorhersage<small></small><button class="info" id="infoBtn" aria-expanded="false" aria-label="Was bedeuten die Punkte?">i</button></div>
     <div class="explain" id="explain"><div><div class="inner">
       <p><b>Die Vorhersage</b> kommt aus einem Modell, dem DWD ICON – für Deutschland das beste. Die farbigen Punkte ändern sie nicht.</p>
       <p><b>Die Punkte</b> zeigen, wie sehr fünf unabhängige Wetterdienste (DWD, ECMWF, NOAA, Météo-France, UK Met Office) für den Tag übereinstimmen. Je einiger, desto verlässlicher.</p>
@@ -806,7 +809,7 @@ function render() {
     <div class="days">${dailyHTML}</div>
   </section>
   <section aria-label="Details">
-    <div class="sh"><span class="shi">≡</span>Details</div>
+    <div class="secH"><span class="shi">≡</span>Details</div>
     <div class="det">
       <div><small>Wind</small><b>${Math.round(cur.wind_speed_10m)} km/h <em>${compass(cur.wind_direction_10m)}, Böen ${Math.round(cur.wind_gusts_10m)}</em></b></div>
       <div><small>Luftfeuchte</small><b>${Math.round(cur.relative_humidity_2m)} %</b></div>
@@ -944,11 +947,7 @@ function bindItems() {
   rEl.querySelectorAll('.ri[data-lat],.fc[data-lat]').forEach(el => {
     const r = { name: el.dataset.name, lat: +el.dataset.lat, lon: +el.dataset.lon, sub: el.dataset.sub || '' };
     el.addEventListener('click', e => {
-      if (e.target.closest('[data-up]')) {
-        e.stopPropagation(); const i = favs.findIndex(f => f.lat === r.lat && f.lon === r.lon);
-        if (i > 0) { [favs[i - 1], favs[i]] = [favs[i], favs[i - 1]]; store.set(LS.favs, favs); renderFavs(); }
-        return;
-      }
+      if (e.target.closest('[data-grip]')) return;
       if (e.target.closest('[data-fav]')) {
         favs = isFav(r) ? favs.filter(f => !(f.lat === r.lat && f.lon === r.lon)) : [...favs, r];
         store.set(LS.favs, favs);
@@ -963,12 +962,35 @@ function bindItems() {
 const favTemp = new Map();
 function favCard(r) {
   const k = r.lat + ',' + r.lon, t = favTemp.get(k);
-  const ft = t ? `${icon(wmo(t.code)[1], !!t.day)}<span>${Math.round(t.t)}°</span>` : `<em>${data && data.demo ? 'Vorschau' : 'lädt'}</em>`;
+  const ft = t ? `${icon(wmo(t.code)[1], !!t.day)}<b>${Math.round(t.t)}°</b>` : `<em>${data && data.demo ? '–' : '…'}</em>`;
   return `<div class="fc" role="button" tabindex="0" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${esc(r.name)}" data-sub="${esc(r.sub || '')}">
-    <span class="fn">${esc(r.name)}</span><small>${esc(r.sub || '')}</small>
     <span class="ft" data-k="${k}">${ft}</span>
+    <span class="fn"><b>${esc(r.name)}</b><small>${esc(r.sub || '')}</small></span>
     <span class="star on" data-fav aria-label="Favorit entfernen">${starSvg(true)}</span>
-    <span class="fmv"><span class="up ${favs.indexOf(r) === 0 ? 'off' : ''}" data-up role="button" aria-label="Nach oben">▲</span></span></div>`;
+    <span class="grip" data-grip aria-label="Zum Sortieren halten und ziehen"><i></i><i></i><i></i></span></div>`;
+}
+function bindDrag() {
+  const list = rEl.querySelector('.favs'); if (!list) return;
+  let d = null;
+  list.querySelectorAll('[data-grip]').forEach(g => {
+    g.addEventListener('pointerdown', e => {
+      const row = g.closest('.fc'); d = { row, y: e.clientY }; row.classList.add('dragging'); g.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+    g.addEventListener('pointermove', e => {
+      if (!d) return;
+      const dy = e.clientY - d.y; d.row.style.transform = `translateY(${dy}px)`;
+      const rows = [...list.querySelectorAll('.fc')], idx = rows.indexOf(d.row);
+      const prev = rows[idx - 1], next = rows[idx + 1];
+      if (next && e.clientY > next.getBoundingClientRect().top + next.offsetHeight / 2) { list.insertBefore(next, d.row); d.y = e.clientY; d.row.style.transform = ''; }
+      else if (prev && e.clientY < prev.getBoundingClientRect().bottom - prev.offsetHeight / 2) { list.insertBefore(d.row, prev); d.y = e.clientY; d.row.style.transform = ''; }
+    });
+    const end = () => {
+      if (!d) return; d.row.classList.remove('dragging'); d.row.style.transform = ''; d = null;
+      const order = [...list.querySelectorAll('.fc')].map(el => favs.find(f => f.lat === +el.dataset.lat && f.lon === +el.dataset.lon)).filter(Boolean);
+      favs = order; store.set(LS.favs, favs);
+    };
+    g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+  });
 }
 async function loadFavTemps() {
   if (data && data.demo) return;
@@ -983,8 +1005,8 @@ async function loadFavTemps() {
   }
 }
 function renderFavs() {
-  rEl.innerHTML = favs.length ? `<h3>Favoriten <span class="hsub">– oberster ist dein Startort, ▲ sortiert</span></h3><div class="favs">${favs.map(favCard).join('')}</div>` : `<h3>Favoriten</h3><div class="hint">Noch keine. Suche einen Ort und tippe auf den Stern. Der oberste Favorit wird dein Startort.</div>`;
-  bindItems(); loadFavTemps();
+  rEl.innerHTML = favs.length ? `<h3>Favoriten <span class="hsub">– der oberste ist dein Startort. Am Griff halten und ziehen.</span></h3><div class="favs">${favs.map(favCard).join('')}</div>` : `<h3>Favoriten</h3><div class="hint">Noch keine. Suche einen Ort und tippe auf den Stern. Der oberste Favorit wird dein Startort.</div>`;
+  bindItems(); bindDrag(); loadFavTemps();
 }
 let qt;
 qEl.addEventListener('input', () => {
