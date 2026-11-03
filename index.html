@@ -347,7 +347,7 @@ body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::af
 (() => {
 'use strict';
 /* ---------- config ---------- */
-const VERSION = '2.11.03-20';
+const VERSION = '2.11.03-21';
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 const MODELS = [
@@ -590,7 +590,8 @@ function render() {
   const { main: m, multi: mm, nowcast: nc } = data;
   const cur = m.current, H = m.hourly, D = m.daily;
   let [condText, condKind] = wmo(cur.weather_code);
-  const stn = data.station && data.station.km != null && data.station.km <= 25 ? data.station : null;
+  const stnAny = data.station && (data.station.km == null || data.station.km <= 50) ? data.station : null;
+  const stn = stnAny && stnAny.km != null && stnAny.km <= 25 ? stnAny : null;
   const radWet = (data.radar && Date.now() - data.radar.at < 40 * 60 * 1000 && data.radar.now) || !!(stn && stn.wet);
   if (radWet && cur.weather_code < 51) { const light = !(data.radar && data.radar.now) || data.radar.strength < .35; condText = (light ? 'Nieselregen' : 'Regen') + (data.radar && data.radar.now ? ' (Radar)' : ' (Station)'); condKind = light ? 'drizzle' : 'rain'; }
   const day = !!cur.is_day;
@@ -637,8 +638,10 @@ function render() {
         else if (rad.next.some(x => x)) { const k = rad.next.findIndex(x => x); headline = `Radar: Regen zieht in etwa ${(k + 1) * 10} Minuten auf`; ncDryUntil = -1; radLine = '<div class="rl rl-wet">Radar-Nowcast sieht Niederschlag in den nächsten 30 Minuten</div>'; }
         else radLine = '<div class="rl">Radar bestätigt: aktuell trocken an deinem Ort</div>';
       }
-      if (stn) {
-        if (stn.wet) { if (!(rad && (rad.now || rad.next.some(x => x)))) { headline = 'Messstation meldet Niederschlag'; ncDryUntil = -1; } radLine += `<div class="rl rl-wet">Station ${esc(stn.name)} (${stn.km} km): ${stn.cond === 'rain' ? 'Regen' : 'Niederschlag'}${stn.p10 != null ? ', ' + stn.p10.toFixed(1) + ' mm in 10 Min.' : ''}</div>`; }
+      if (!stnAny) radLine += `<div class="rl">${data.station ? 'Nächste DWD-Station zu weit entfernt (' + data.station.km + ' km)' : 'Keine Stationsdaten verfügbar'}</div>`;
+      if (stnAny) {
+        const stn = stnAny;
+        if (stn.wet) { if (stn.km != null && stn.km <= 25 && !(rad && (rad.now || rad.next.some(x => x)))) { headline = 'Messstation meldet Niederschlag'; ncDryUntil = -1; } radLine += `<div class="rl rl-wet">Station ${esc(stn.name)} (${stn.km} km): ${stn.cond === 'rain' ? 'Regen' : 'Niederschlag'}${stn.p10 != null ? ', ' + stn.p10.toFixed(1) + ' mm in 10 Min.' : ''}</div>`; }
         else if (stn.recent) radLine += `<div class="rl">Station ${esc(stn.name)} (${stn.km} km): ${stn.p60.toFixed(1)} mm in der letzten Stunde</div>`;
         else radLine += `<div class="rl">Station ${esc(stn.name)} (${stn.km} km): trocken</div>`;
       }
@@ -824,14 +827,14 @@ async function loadFor(l, force) {
   loc = l; store.set(LS.loc, l);
   $('#locName').textContent = l.name;
   const cached = store.get(LS.cache, null);
-  if (!force && cached && cached.key === l.lat + ',' + l.lon && Date.now() - cached.at < 10 * 60 * 1000) {
+  if (!force && cached && cached.key === l.lat + ',' + l.lon && cached.v === VERSION && Date.now() - cached.at < 10 * 60 * 1000) {
     data = cached; render(); return;
   }
   if (cached && cached.key === l.lat + ',' + l.lon) { data = cached; render(); app.classList.add('skel'); }
   else app.innerHTML = `<div class="hero skel"><div class="date">&nbsp;</div><div class="now"><div class="temp">00°</div></div><div class="cond">Lade Vorhersage</div><div class="sub">&nbsp;</div></div>`;
   try {
     const d = await loadWeather(l.lat, l.lon);
-    d.key = l.lat + ',' + l.lon;
+    d.key = l.lat + ',' + l.lon; d.v = VERSION;
     data = d; store.set(LS.cache, d); app.classList.remove('skel'); render();
     // radar pixel check afterwards, then one re-render if it answered
     radarNow(l.lat, l.lon).then(r => { if (r && data === d) { d.radar = r; store.set(LS.cache, d); render(); } }).catch(() => {});
