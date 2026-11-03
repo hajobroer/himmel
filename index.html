@@ -347,7 +347,7 @@ body.snowing section::after,body.snowing .rel::after,body.snowing .qd button::af
 (() => {
 'use strict';
 /* ---------- config ---------- */
-const VERSION = '2.11.03-22';
+const VERSION = '2.11.03-23';
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 const MODELS = [
@@ -591,14 +591,17 @@ function render() {
   const cur = m.current, H = m.hourly, D = m.daily;
   let [condText, condKind] = wmo(cur.weather_code);
   // drizzle heuristic: saturated air under closed low cloud, light wind – invisible to radar and rain gauge
-  const drizzleLikely = h => (H.relative_humidity_2m && H.cloud_cover_low) ? (H.relative_humidity_2m[h] >= 93 && H.cloud_cover_low[h] >= 85 && (H.wind_speed_10m ? H.wind_speed_10m[h] : 0) <= 30) : false;
-  const drizNow = (cur.relative_humidity_2m >= 93 && (cur.cloud_cover_low ?? cur.cloud_cover) >= 85 && cur.wind_speed_10m <= 30 && cur.weather_code < 51);
+  // tier 2 ("möglich"): RH ≥ 92 %, tier 1 ("nicht ausgeschlossen"): RH ≥ 84 % – each under closed low cloud and light wind
+  const drizTier = (rh, low, wind) => (low >= 80 && wind <= 35) ? (rh >= 92 ? 2 : rh >= 84 ? 1 : 0) : 0;
+  const drizzleLikely = h => (H.relative_humidity_2m && H.cloud_cover_low) ? drizTier(H.relative_humidity_2m[h], H.cloud_cover_low[h], H.wind_speed_10m ? H.wind_speed_10m[h] : 0) > 0 : false;
+  const drizLevel = cur.weather_code < 51 ? drizTier(cur.relative_humidity_2m, cur.cloud_cover_low ?? cur.cloud_cover, cur.wind_speed_10m) : 0;
+  const drizNow = drizLevel > 0;
   let drizUntil = -1;
   if (drizNow) { let hi0 = H.time.indexOf(cur.time.slice(0, 13) + ':00'); if (hi0 >= 0) { let k = hi0; while (k < H.time.length && k < hi0 + 12 && drizzleLikely(k)) k++; drizUntil = parseInt(H.time[Math.min(k, H.time.length - 1)].slice(11, 13), 10); } }
   const stnAny = data.station && (data.station.km == null || data.station.km <= 50) ? data.station : null;
   const stn = stnAny && stnAny.km != null && stnAny.km <= 25 ? stnAny : null;
   const radWet = (data.radar && Date.now() - data.radar.at < 40 * 60 * 1000 && data.radar.now) || !!(stn && stn.wet);
-  if (!radWet && drizNow) { condText = 'Bedeckt, Niesel möglich'; condKind = 'drizzle'; }
+  if (!radWet && drizNow) { condText = drizLevel === 2 ? 'Bedeckt, Niesel möglich' : 'Bedeckt, Niesel nicht ausgeschlossen'; if (drizLevel === 2) condKind = 'drizzle'; }
   if (radWet && cur.weather_code < 51) { const light = !(data.radar && data.radar.now) || data.radar.strength < .35; condText = (light ? 'Nieselregen' : 'Regen') + (data.radar && data.radar.now ? ' (Radar)' : ' (Station)'); condKind = light ? 'drizzle' : 'rain'; }
   const day = !!cur.is_day;
   const today = consensus(mm, 0);
@@ -644,7 +647,7 @@ function render() {
         else if (rad.next.some(x => x)) { const k = rad.next.findIndex(x => x); headline = `Radar: Regen zieht in etwa ${(k + 1) * 10} Minuten auf`; ncDryUntil = -1; radLine = '<div class="rl rl-wet">Radar-Nowcast sieht Niederschlag in den nächsten 30 Minuten</div>'; }
         else radLine = '<div class="rl">Radar bestätigt: aktuell trocken an deinem Ort</div>';
       }
-      if (!radWet && drizNow && !(rad && (rad.now || rad.next.some(x => x)))) { headline = drizUntil > 0 ? `Feiner Niesel möglich, etwa bis ${drizUntil} Uhr` : 'Feiner Niesel möglich'; radLine += '<div class="rl rl-wet">Sehr feuchte Luft unter tiefen Wolken – Sprühregen, den Radar und Messstation nicht erfassen</div>'; }
+      if (!radWet && drizNow && !(rad && (rad.now || rad.next.some(x => x)))) { headline = (drizLevel === 2 ? 'Feiner Niesel möglich' : 'Leichter Niesel nicht ausgeschlossen') + (drizUntil > 0 ? `, etwa bis ${drizUntil} Uhr` : ''); radLine += `<div class="rl ${drizLevel === 2 ? 'rl-wet' : ''}">${drizLevel === 2 ? 'Sehr feuchte' : 'Feuchte'} Luft unter tiefen Wolken – Sprühregen, den Radar und Messstation nicht erfassen</div>`; }
       if (!stnAny) radLine += `<div class="rl">${data.station ? 'Nächste DWD-Station zu weit entfernt (' + data.station.km + ' km)' : 'Keine Stationsdaten verfügbar'}</div>`;
       if (stnAny) {
         const stn = stnAny;
@@ -674,7 +677,7 @@ function render() {
   }
 
   const todayDS = daySummary(H, D, 0, parseInt(cur.time.slice(11, 13), 10), ncDryUntil, !!radWet);
-  if (todayDS && !radWet && drizNow && /trocken/.test(todayDS.txt)) todayDS.txt = todayDS.txt.replace(/<b>[^<]*trocken<\/b>/, `<b>Kein nennenswerter Regen, zeitweise feiner Niesel möglich${drizUntil > 0 ? ' bis etwa ' + drizUntil + ' Uhr' : ''}</b>`).replace(' – ideal für Sport oder Zeit mit der Familie draußen.', ' – für draußen reicht eine leichte Jacke.');
+  if (todayDS && !radWet && drizNow && /trocken/.test(todayDS.txt)) todayDS.txt = todayDS.txt.replace(/<b>[^<]*trocken<\/b>/, `<b>Kein nennenswerter Regen, ${drizLevel === 2 ? 'zeitweise feiner Niesel möglich' : 'leichter Niesel nicht ausgeschlossen'}${drizUntil > 0 ? ' bis etwa ' + drizUntil + ' Uhr' : ''}</b>`).replace(' – ideal für Sport oder Zeit mit der Familie draußen.', drizLevel === 2 ? ' – für draußen reicht eine leichte Jacke.' : ' – draußen geht, eine Jacke schadet nicht.');
   const dailyHTML = D.time.map((t, i) => {
     const c = consensus(mm, i);
     const [lbl, col] = level(c.score);
